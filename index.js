@@ -17,7 +17,7 @@ app.use((req, res, next) => {
   res.setHeader("Acces-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE");
   res.setHeader("Acces-Contorl-Allow-Methods", "Content-Type", "Authorization");
   next();
-}); 
+});
 app.use(bodyParser.json());
 app.use(cors());
 app.use(express.static('doctors'));
@@ -25,9 +25,9 @@ app.use(fileUpload());
 
 const port = 8080;
 
-// app.get('/', (req, res) => {
-//     res.send("hello from db it's working working")
-// })
+app.get('/', (req, res) => {
+    res.send("hello from db it's working working")
+})
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 client.connect(err => {
