@@ -18,7 +18,7 @@ app.use(express.static("doctors"));
 app.use(fileUpload());
 
 app.get("/", (req, res) => {
-  res.send("hello from db it's working working");
+  res.send("Blood Donar App");
 });
 
 const uri =
@@ -54,149 +54,130 @@ const client = new MongoClient(uri, {
   useUnifiedTopology: true,
 });
 client.connect((err) => {
-  const productCollection = client.db("eBachelor").collection("products");
-  const ordersCollection = client.db("eBachelor").collection("orders");
-  const cartCollection = client.db("eBachelor").collection("cart");
-  const adminCollection = client.db("eBachelor").collection("admin");
+  const bloodDetails = client.db("blood-donation").collection("bloodDetails");
+  const userDetails = client.db("blood-donation").collection("userDetails");
 
-  app.patch("/update/:id", (req, res) => {
-    productCollection
-      .updateOne(
-        { _id: ObjectID(req.params.id) },
-        {
-          $set: {
-            price: req.body.price,
-            description: req.body.description,
-          },
-        }
-      )
-      .then((result) => {});
-  });
-  app.patch("/updateStatus/:id", (req, res) => {
-    ordersCollection
-      .updateOne(
-        { _id: ObjectID(req.params.id) },
-        {
-          $set: { status: req.body.status },
-        }
-      )
-      .then((result) => {});
-  });
-
-  app.patch("/updateCart/:id", (req, res) => {
-    cartCollection
-      .replaceOne({ _id: req.params.id }, req.body)
-      .then((result) => {});
-  });
-
-  app.get("/orders", (req, res) => {
-    ordersCollection.find({}).toArray((err, documents) => {
-      res.send(documents);
+    app.get("/AvailableDonars", (req, res) => {
+      if (req?.query?.groupId && req?.query?.locationId) {
+        // console.log(typeof req.query.groupId)
+        userDetails
+          .find({
+            groupId: parseInt(req.query.groupId),
+            locationId: parseInt(req.query.locationId),
+            status: true,
+          })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else if (req?.query?.groupId && !req?.query?.locationId) {
+        userDetails
+          .find({ groupId: parseInt(req.query.groupId), status: true })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else if (!req?.query?.groupId && req?.query?.locationId) {
+        userDetails
+          .find({ locationId: parseInt(req.query.locationId), status: true })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else {
+        userDetails.find({ status: true }).toArray((err, documents) => {
+          res.send(documents);
+        });
+      }
     });
-  });
 
-  app.post("/ordersByUser", (req, res) => {
-    const email = req.body.email;
-    ordersCollection.find({ email: email }).toArray((err, documents) => {
-      res.send(documents);
-    });
-  });
-
-  app.post("/cart", (req, res) => {
-    const email = req.body.email;
-    cartCollection.find({ email: email }).toArray((err, documents) => {
-      res.send(documents);
-    });
-  });
-
-  app.get("/products/:category", (req, res) => {
-    const category = req.params.category;
-    productCollection.find({ category: category }).toArray((err, documents) => {
-      res.send(documents);
-    });
-  });
-
-  app.post("/addAdmin", (req, res) => {
-    const email = req.body;
-    adminCollection.insertOne(email).then((result) => {
-      res.send(result.insertedCount > 0);
-    });
-  });
-
-  app.post("/isAdmin", (req, res) => {
-    const email = req.body.email;
-    console.log("email",req.body);
-    adminCollection.find({ email: email }).toArray((err, documents) => {
-      res.send(documents.length > 0);
-      // console.log("doc", documents);
-      // console.log(err);
-    });
-  });
-
-  app.post("/addProduct", (req, res) => {
-    const file = req.files.file;
-    const name = req.body.name;
-    const category = req.body.category;
-    const description = req.body.description;
-    const price = req.body.price;
-    const newImg = file.data;
-    const encImg = newImg.toString("base64");
-
-    var image = {
-      contentType: file.mimetype,
-      size: file.size,
-      img: Buffer.from(encImg, "base64"),
-    };
-
-    productCollection
-      .insertOne({ name, price, category, description, image })
-      .then((result) => {
+    app.post("/AddUserDetails", (req, res) => {
+      const order = req.body;
+      userDetails.insertOne(order).then((result) => {
+        console.log(result);
         res.send(result.insertedCount > 0);
       });
-  });
-
-  app.get("/products", (req, res) => {
-    productCollection.find({}).toArray((err, documents) => {
-      res.send(documents);
     });
-  });
 
-  app.delete("/deleteWholeCart", (req, res) => {
-    cartCollection.deleteMany({}).then((documents) => {
-      res.send(!!documents.value);
+    app.put("/UpdateUserDetails", (req, res) => {
+      const {
+        email,
+        name,
+        group,
+        groupId,
+        location,
+        locationId,
+        phone,
+        status,
+      } = req.body;
+      console.log(req.body);
+      userDetails
+        .updateOne(
+          { email: email },
+          {
+            $set: {
+              name: name,
+              group: group,
+              groupId: groupId,
+              locationId: locationId,
+              location: location,
+              phone: phone,
+              status: status,
+            },
+          }
+        )
+        .then((result) => {
+          res.send(result);
+        });
     });
-  });
 
-  app.post("/addNewOrder", (req, res) => {
-    const order = req.body;
-    ordersCollection.insertOne(order).then((result) => {
-      res.send(result.insertedCount > 0);
+    app.post("/GetUserDetails", (req, res) => {
+      console.log(req?.body?.email);
+      userDetails.find({ email: req.body.email }).toArray((err, documents) => {
+        res.send(documents);
+      });
     });
-  });
 
-  app.post("/addToCart", (req, res) => {
-    const order = req.body;
-
-    cartCollection.insertOne(order).then((result) => {
-      res.send(result.insertedCount > 0);
+    app.post("/AddBloodDetails", (req, res) => {
+      const order = req.body;
+      bloodDetails.insertOne(order).then((result) => {
+        console.log(result);
+        res.send(result.insertedCount > 0);
+      });
     });
-  });
-
-
-
-  app.delete("/delete/:id", (req, res) => {
-    const id = ObjectID(req.params.id);
-    productCollection.findOneAndDelete({ _id: id }).then((documents) => {
-      res.send(!!documents.value);
+    app.get("/FilterBloodDetails", (req, res) => {
+      bloodDetails
+        .find({ groupId: parseInt(req?.query?.groupId) })
+        .toArray((err, documents) => {
+          res.send(documents);
+        });
     });
-  });
-  app.delete("/deleteCart/:id", (req, res) => {
-    const id = req.params.id;
 
-    cartCollection.findOneAndDelete({ _id: id }).then((documents) => {
-      res.send(!!documents.value);
+    app.get("/AllBloodDetails", (req, res) => {
+      if (req?.query?.groupId && req?.query?.locationId) {
+        bloodDetails
+          .find({
+            groupId: parseInt(req.query.groupId),
+            locationId: parseInt(req.query.locationId),
+          })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else if (req?.query?.groupId && !req?.query?.locationId) {
+        bloodDetails
+          .find({ groupId: parseInt(req.query.groupId) })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else if (!req?.query?.groupId && req?.query?.locationId) {
+        bloodDetails
+          .find({ locationId: parseInt(req.query.locationId) })
+          .toArray((err, documents) => {
+            res.send(documents);
+          });
+      } else {
+        bloodDetails.find().toArray((err, documents) => {
+          res.send(documents);
+        });
+      }
     });
-  });
 });
 
 app.listen(process.env.PORT || port);
